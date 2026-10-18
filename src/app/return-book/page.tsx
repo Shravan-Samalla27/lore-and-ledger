@@ -5,11 +5,15 @@ import { useSearchParams } from 'next/navigation';
 import { useLibrary, LoanRecord } from '@/context/LibraryContext';
 import QuittanceSlipModal from '@/components/QuittanceSlipModal';
 
+import RoleGuard from '@/components/RoleGuard';
+
 export default function ReturnBookPage() {
   return (
-    <Suspense fallback={<div className="p-8 font-code-ledger text-secondary">Loading Return Desk Register...</div>}>
-      <ReturnBookContent />
-    </Suspense>
+    <RoleGuard allowedRoles={['librarian', 'admin']}>
+      <Suspense fallback={<div className="p-8 font-code-ledger text-secondary">Loading Return Desk Register...</div>}>
+        <ReturnBookContent />
+      </Suspense>
+    </RoleGuard>
   );
 }
 

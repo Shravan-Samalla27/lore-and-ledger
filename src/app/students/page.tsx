@@ -3,8 +3,17 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useLibrary, Scholar } from '@/context/LibraryContext';
+import RoleGuard from '@/components/RoleGuard';
 
 export default function StudentsRegisterPage() {
+  return (
+    <RoleGuard allowedRoles={['librarian', 'admin']}>
+      <StudentsRegisterContent />
+    </RoleGuard>
+  );
+}
+
+function StudentsRegisterContent() {
   const { scholars, loans, showToast } = useLibrary();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCollege, setSelectedCollege] = useState('all');

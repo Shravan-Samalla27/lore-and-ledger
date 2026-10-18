@@ -4,6 +4,7 @@ import React, { useState, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useLibrary, Book } from '@/context/LibraryContext';
+import { useAuth } from '@/context/AuthContext';
 
 export default function BooksCataloguePage() {
   return (
@@ -15,6 +16,8 @@ export default function BooksCataloguePage() {
 
 function BooksCatalogueContent() {
   const { books, reserveBook, showToast } = useLibrary();
+  const { role } = useAuth();
+  const isStaff = role === 'librarian' || role === 'admin';
   const searchParams = useSearchParams();
 
   // Local filter states
@@ -303,7 +306,7 @@ function BooksCatalogueContent() {
                         >
                           Examine
                         </button>
-                        {book.availableCopies > 0 ? (
+                        {isStaff && book.availableCopies > 0 ? (
                           <button
                             onClick={() => handleQuickLend(book)}
                             className="px-space-sm py-1 bg-primary text-secondary-fixed rounded font-code-ledger text-[11px] shadow hover:bg-primary-container cursor-pointer border border-secondary/40 font-bold"
@@ -396,7 +399,7 @@ function BooksCatalogueContent() {
                             >
                               Dossier
                             </button>
-                            {book.availableCopies > 0 ? (
+                            {isStaff && book.availableCopies > 0 ? (
                               <button
                                 onClick={() => handleQuickLend(book)}
                                 className="px-2 py-1 bg-primary text-secondary-fixed rounded text-[11px] shadow hover:bg-primary-container cursor-pointer font-code-ledger font-semibold"

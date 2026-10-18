@@ -2,8 +2,17 @@
 
 import React from 'react';
 import { useLibrary } from '@/context/LibraryContext';
+import RoleGuard from '@/components/RoleGuard';
 
 export default function ReportsPage() {
+  return (
+    <RoleGuard allowedRoles={['librarian', 'admin']}>
+      <ReportsContent />
+    </RoleGuard>
+  );
+}
+
+function ReportsContent() {
   const { loans, books, showToast } = useLibrary();
 
   const handleExportCSV = () => {

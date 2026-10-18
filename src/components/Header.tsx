@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLibrary } from '@/context/LibraryContext';
+import { useAuth } from '@/context/AuthContext';
 
 interface HeaderProps {
   onOpenNewAcquisition?: () => void;
@@ -13,6 +14,7 @@ interface HeaderProps {
 export default function Header({ onOpenNewAcquisition }: HeaderProps) {
   const router = useRouter();
   const { loans, books, searchQuery, setSearchQuery } = useLibrary();
+  const { user, profile, role, signOut } = useAuth();
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
 
   const overdueCount = loans.filter(l => l.status === 'OVERDUE').length;
@@ -33,6 +35,19 @@ export default function Header({ onOpenNewAcquisition }: HeaderProps) {
       router.push(`/books?q=${encodeURIComponent(searchQuery)}`);
       setShowSearchDropdown(false);
     }
+  };
+
+  const getRoleDisplayName = () => {
+    if (role === 'admin') return 'High Chancellor';
+    if (role === 'librarian') return 'Archivist & Custodian';
+    if (role === 'student') return 'Matriculated Scholar';
+    return 'Archive Visitor';
+  };
+
+  const getUserDisplayName = () => {
+    if (profile?.fullName) return profile.fullName;
+    if (user?.email) return user.email.split('@')[0];
+    return 'Archivist Eleanor Vance';
   };
 
   return (
@@ -98,63 +113,103 @@ export default function Header({ onOpenNewAcquisition }: HeaderProps) {
         )}
       </div>
 
-      {/* Action Buttons & Archivist Profile */}
+      {/* Action Buttons & User Profile */}
       <div className="flex items-center gap-space-md shrink-0">
-        <div className="flex items-center gap-space-xs">
-          <Link
-            href="/issue-book"
-            className="inline-flex items-center gap-1.5 px-space-md py-1.5 bg-primary text-surface-bright rounded border border-secondary/50 font-body-sm text-body-sm shadow hover:bg-primary-container transition-colors"
-          >
-            <span className="material-symbols-outlined text-[16px] text-secondary-fixed">
-              arrow_upward
-            </span>
-            <span>Lend Book</span>
-          </Link>
+        {/* Role-Specific Action Controls */}
+        {role === 'student' ? (
+          <div className="flex items-center gap-space-xs">
+            <Link
+              href="/student"
+              className="inline-flex items-center gap-1.5 px-space-md py-1.5 bg-primary text-secondary-fixed rounded border border-secondary/50 font-body-sm text-body-sm shadow hover:bg-primary-container transition-colors"
+            >
+              <span className="material-symbols-outlined text-[16px]">school</span>
+              <span>My Reading Desk</span>
+            </Link>
+            <Link
+              href="/books"
+              className="inline-flex items-center gap-1.5 px-space-md py-1.5 bg-surface-container-high text-on-surface rounded border border-secondary/30 font-body-sm text-body-sm hover:bg-surface-container transition-colors"
+            >
+              <span className="material-symbols-outlined text-[16px] text-secondary">menu_book</span>
+              <span>Catalogue</span>
+            </Link>
+          </div>
+        ) : (
+          <div className="flex items-center gap-space-xs">
+            <Link
+              href="/issue-book"
+              className="inline-flex items-center gap-1.5 px-space-md py-1.5 bg-primary text-surface-bright rounded border border-secondary/50 font-body-sm text-body-sm shadow hover:bg-primary-container transition-colors"
+            >
+              <span className="material-symbols-outlined text-[16px] text-secondary-fixed">
+                arrow_upward
+              </span>
+              <span>Lend Book</span>
+            </Link>
 
-          <button
-            type="button"
-            onClick={onOpenNewAcquisition}
-            className="inline-flex items-center gap-1.5 px-space-md py-1.5 bg-surface-container-high text-on-surface rounded border border-secondary/30 font-body-sm text-body-sm hover:bg-surface-container transition-colors cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-[16px] text-secondary">
-              add_circle
-            </span>
-            <span>New Acquisition</span>
-          </button>
+            <button
+              type="button"
+              onClick={onOpenNewAcquisition}
+              className="inline-flex items-center gap-1.5 px-space-md py-1.5 bg-surface-container-high text-on-surface rounded border border-secondary/30 font-body-sm text-body-sm hover:bg-surface-container transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[16px] text-secondary">
+                add_circle
+              </span>
+              <span>New Acquisition</span>
+            </button>
 
-          <Link
-            href="/return-book?filter=overdue"
-            className="inline-flex items-center gap-1.5 px-space-sm py-1.5 bg-tertiary-container/20 text-tertiary rounded border border-tertiary/30 font-code-ledger text-[12px] hover:bg-tertiary-container/30 transition-colors"
-          >
-            <span className="material-symbols-outlined text-[16px] text-tertiary">
-              warning
-            </span>
-            <span>Overdue Alerts ({overdueCount})</span>
-          </Link>
-        </div>
+            <Link
+              href="/return-book?filter=overdue"
+              className="inline-flex items-center gap-1.5 px-space-sm py-1.5 bg-tertiary-container/20 text-tertiary rounded border border-tertiary/30 font-code-ledger text-[12px] hover:bg-tertiary-container/30 transition-colors"
+            >
+              <span className="material-symbols-outlined text-[16px] text-tertiary">
+                warning
+              </span>
+              <span>Overdue ({overdueCount})</span>
+            </Link>
+          </div>
+        )}
 
         <div className="h-8 w-px bg-secondary/20 mx-space-xs" />
 
-        {/* Archivist Identity */}
-        <div className="flex items-center gap-space-sm">
-          <div className="text-right">
-            <div className="font-headline-sm text-body-md font-semibold text-on-surface leading-tight">
-              Archivist Eleanor Vance
+        {/* User Station Identity */}
+        {user ? (
+          <div className="flex items-center gap-space-sm">
+            <div className="text-right">
+              <div className="font-headline-sm text-body-md font-semibold text-on-surface leading-tight">
+                {getUserDisplayName()}
+              </div>
+              <div className="font-stamp-label text-[10px] text-secondary tracking-wider uppercase">
+                {getRoleDisplayName()}
+              </div>
             </div>
-            <div className="font-stamp-label text-[10px] text-secondary tracking-wider uppercase">
-              Grand Custodian of Volumes
+            <div className="relative w-9 h-9 rounded-full overflow-hidden border-2 border-secondary/60 shadow bg-secondary/20 flex items-center justify-center font-bold text-primary">
+              <Image
+                src="/images/archivist.png"
+                alt="Station Avatar"
+                width={36}
+                height={36}
+                className="w-full h-full object-cover"
+              />
             </div>
+            <button
+              onClick={() => {
+                signOut();
+                router.push('/login');
+              }}
+              title="Sign Out"
+              className="p-1 rounded text-on-surface-variant hover:text-tertiary hover:bg-surface-container transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[20px]">logout</span>
+            </button>
           </div>
-          <div className="relative w-9 h-9 rounded-full overflow-hidden border-2 border-secondary/60 shadow bg-secondary/20">
-            <Image
-              src="/images/archivist.png"
-              alt="Archivist Eleanor Vance"
-              width={36}
-              height={36}
-              className="w-full h-full object-cover"
-            />
-          </div>
-        </div>
+        ) : (
+          <Link
+            href="/login"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary text-surface-bright font-code-ledger text-[12px] font-bold hover:bg-secondary-fixed-dim transition-all shadow-sm border border-secondary-container"
+          >
+            <span className="material-symbols-outlined text-[16px]">key</span>
+            <span>Select Station (Sign In)</span>
+          </Link>
+        )}
       </div>
     </header>
   );

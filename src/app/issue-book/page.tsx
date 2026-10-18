@@ -5,11 +5,15 @@ import { useSearchParams } from 'next/navigation';
 import { useLibrary, Scholar, Book } from '@/context/LibraryContext';
 import QuittanceSlipModal from '@/components/QuittanceSlipModal';
 
+import RoleGuard from '@/components/RoleGuard';
+
 export default function IssueBookPage() {
   return (
-    <Suspense fallback={<div className="p-8 font-code-ledger text-secondary">Loading Issue Desk Registry...</div>}>
-      <IssueBookContent />
-    </Suspense>
+    <RoleGuard allowedRoles={['librarian', 'admin']}>
+      <Suspense fallback={<div className="p-8 font-code-ledger text-secondary">Loading Issue Desk Registry...</div>}>
+        <IssueBookContent />
+      </Suspense>
+    </RoleGuard>
   );
 }
 

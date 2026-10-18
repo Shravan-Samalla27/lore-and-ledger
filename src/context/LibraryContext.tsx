@@ -1,6 +1,17 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import {
+  supabase,
+  isSupabaseConfigured,
+  mapBookFromDb,
+  mapBookToDb,
+  mapScholarFromDb,
+  mapLoanFromDb,
+  mapLoanToDb,
+  mapSettingsFromDb,
+  LibrarySettings
+} from '@/lib/supabase';
 
 export interface Book {
   callNo: string;
@@ -72,23 +83,15 @@ interface ToastInfo {
   visible: boolean;
 }
 
-interface LibraryContextType {
-  books: Book[];
-  scholars: Scholar[];
-  loans: LoanRecord[];
-  sessionDispatches: SessionDispatch[];
-  toast: ToastInfo;
-  showToast: (message: string, icon?: string, type?: 'success' | 'warning' | 'info') => void;
-  hideToast: () => void;
-  lendBook: (scholarId: string, bookCallNo: string, loanDays: number, notes?: string) => { success: boolean; loanRef?: string; message: string };
-  returnBook: (loanRef: string, condition?: string, hasDamage?: boolean) => { success: boolean; message: string };
-  addBook: (book: Omit<Book, 'availableCopies'>) => void;
-  reserveBook: (callNo: string) => void;
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
-}
+export const INITIAL_SETTINGS: LibrarySettings = {
+  termName: 'Michaelmas Term 1888',
+  dailyFineRate: 50,
+  binderyFee: 150,
+  maxLoanDays: 28,
+  chaperoneRequired: true
+};
 
-const INITIAL_BOOKS: Book[] = [
+export const INITIAL_BOOKS: Book[] = [
   {
     callNo: 'PR-4581-V1',
     title: 'The Anatomy of Melancholy',
@@ -235,7 +238,7 @@ const INITIAL_BOOKS: Book[] = [
   }
 ];
 
-const INITIAL_SCHOLARS: Scholar[] = [
+export const INITIAL_SCHOLARS: Scholar[] = [
   {
     id: 'SCH-2023-412',
     name: 'Eleanor Finch',
@@ -293,7 +296,7 @@ const INITIAL_SCHOLARS: Scholar[] = [
   }
 ];
 
-const INITIAL_LOANS: LoanRecord[] = [
+export const INITIAL_LOANS: LoanRecord[] = [
   {
     ref: 'LN-8492',
     bookCallNo: 'MS-AR-940.1',
@@ -381,7 +384,7 @@ const INITIAL_LOANS: LoanRecord[] = [
   }
 ];
 
-const INITIAL_DISPATCHES: SessionDispatch[] = [
+export const INITIAL_DISPATCHES: SessionDispatch[] = [
   {
     timestamp: '17:14:02',
     loanRef: 'LN-8512',
@@ -404,6 +407,27 @@ const INITIAL_DISPATCHES: SessionDispatch[] = [
   }
 ];
 
+export interface LibraryContextType {
+  books: Book[];
+  scholars: Scholar[];
+  loans: LoanRecord[];
+  sessionDispatches: SessionDispatch[];
+  settings: LibrarySettings;
+  toast: ToastInfo;
+  isLoading: boolean;
+  isDbConnected: boolean;
+  showToast: (message: string, icon?: string, type?: 'success' | 'warning' | 'info') => void;
+  hideToast: () => void;
+  lendBook: (scholarId: string, bookCallNo: string, loanDays: number, notes?: string) => { success: boolean; loanRef?: string; message: string };
+  returnBook: (loanRef: string, condition?: string, hasDamage?: boolean) => { success: boolean; message: string };
+  addBook: (book: Omit<Book, 'availableCopies'>) => void;
+  reserveBook: (callNo: string) => void;
+  updateSettings: (newSettings: Partial<LibrarySettings>) => void;
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  refreshData: () => Promise<void>;
+}
+
 const LibraryContext = createContext<LibraryContextType | undefined>(undefined);
 
 export function LibraryProvider({ children }: { children: React.ReactNode }) {
@@ -411,22 +435,67 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
   const [scholars, setScholars] = useState<Scholar[]>(INITIAL_SCHOLARS);
   const [loans, setLoans] = useState<LoanRecord[]>(INITIAL_LOANS);
   const [sessionDispatches, setSessionDispatches] = useState<SessionDispatch[]>(INITIAL_DISPATCHES);
+  const [settings, setSettings] = useState<LibrarySettings>(INITIAL_SETTINGS);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDbConnected, setIsDbConnected] = useState(false);
   const [toast, setToast] = useState<ToastInfo>({
     message: '',
     visible: false
   });
 
-  const showToast = (message: string, icon = 'check_circle', type: 'success' | 'warning' | 'info' = 'success') => {
+  const showToast = useCallback((message: string, icon = 'check_circle', type: 'success' | 'warning' | 'info' = 'success') => {
     setToast({ message, icon, type, visible: true });
     setTimeout(() => {
       setToast(prev => ({ ...prev, visible: false }));
     }, 3800);
-  };
+  }, []);
 
-  const hideToast = () => {
+  const hideToast = useCallback(() => {
     setToast(prev => ({ ...prev, visible: false }));
-  };
+  }, []);
+
+  // Safe data loader from Supabase with graceful fallback
+  const refreshData = useCallback(async () => {
+    if (!isSupabaseConfigured() || !supabase) {
+      setIsLoading(false);
+      setIsDbConnected(false);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const [booksRes, scholarsRes, loansRes, settingsRes] = await Promise.all([
+        supabase.from('books').select('*').order('title', { ascending: true }),
+        supabase.from('scholars').select('*').order('name', { ascending: true }),
+        supabase.from('loans').select('*').order('created_at', { ascending: false }),
+        supabase.from('library_settings').select('*').eq('id', 1).maybeSingle()
+      ]);
+
+      if (booksRes.data && booksRes.data.length > 0) {
+        setBooks(booksRes.data.map(mapBookFromDb));
+      }
+      if (scholarsRes.data && scholarsRes.data.length > 0) {
+        setScholars(scholarsRes.data.map(mapScholarFromDb));
+      }
+      if (loansRes.data && loansRes.data.length > 0) {
+        setLoans(loansRes.data.map(mapLoanFromDb));
+      }
+      if (settingsRes.data) {
+        setSettings(mapSettingsFromDb(settingsRes.data));
+      }
+      setIsDbConnected(true);
+    } catch (err: any) {
+      console.warn('Supabase fetch failed; continuing with local registers:', err);
+      setIsDbConnected(false);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshData();
+  }, [refreshData]);
 
   const lendBook = (
     scholarId: string,
@@ -456,32 +525,18 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
     const dueDateStr = `${String(due.getDate()).padStart(2, '0')} ${months[due.getMonth()]} ${due.getFullYear()}`;
     const dueDateUpper = `${String(due.getDate()).padStart(2, '0')} ${months[due.getMonth()].toUpperCase()} ${due.getFullYear()}`;
 
-    // Update book copies
+    const newAvail = book.availableCopies - 1;
+    const newStatus: Book['status'] = newAvail === 0 ? 'CIRCULATING' : book.status;
+
+    // 1. Optimistic updates
     setBooks(prev =>
-      prev.map(b => {
-        if (b.callNo === bookCallNo) {
-          const newAvail = b.availableCopies - 1;
-          return {
-            ...b,
-            availableCopies: newAvail,
-            status: newAvail === 0 ? 'CIRCULATING' : b.status
-          };
-        }
-        return b;
-      })
+      prev.map(b => (b.callNo === bookCallNo ? { ...b, availableCopies: newAvail, status: newStatus } : b))
     );
 
-    // Update scholar loan count
     setScholars(prev =>
-      prev.map(s => {
-        if (s.id === scholarId) {
-          return { ...s, activeLoansCount: s.activeLoansCount + 1 };
-        }
-        return s;
-      })
+      prev.map(s => (s.id === scholarId ? { ...s, activeLoansCount: s.activeLoansCount + 1 } : s))
     );
 
-    // Add to loans ledger
     const newLoan: LoanRecord = {
       ref: newLoanRef,
       bookCallNo: book.callNo,
@@ -502,7 +557,6 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
     };
     setLoans(prev => [newLoan, ...prev]);
 
-    // Add to current session dispatch
     const nowTime = new Date();
     const timeStr = `${String(nowTime.getHours()).padStart(2, '0')}:${String(nowTime.getMinutes()).padStart(2, '0')}:${String(nowTime.getSeconds()).padStart(2, '0')}`;
     
@@ -522,6 +576,31 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
 
     showToast(`Volume ${book.callNo} successfully dispatched to ${scholar.name}! [Folio: ${newLoanRef}]`, 'verified');
 
+    // 2. Real database operations
+    if (supabase) {
+      (async () => {
+        try {
+          const { error: loanErr } = await supabase.from('loans').insert(mapLoanToDb(newLoan));
+          if (loanErr) throw loanErr;
+
+          const { error: bookErr } = await supabase
+            .from('books')
+            .update({ available_copies: newAvail, status: newStatus })
+            .eq('call_no', bookCallNo);
+          if (bookErr) throw bookErr;
+
+          const { error: scholarErr } = await supabase
+            .from('scholars')
+            .update({ active_loans_count: scholar.activeLoansCount + 1 })
+            .eq('id', scholarId);
+          if (scholarErr) throw scholarErr;
+        } catch (dbErr: any) {
+          console.error('Supabase lendBook write error:', dbErr);
+          showToast(`Note: Dispatched locally; database sync failed: ${dbErr.message || dbErr}`, 'warning', 'warning');
+        }
+      })();
+    }
+
     return {
       success: true,
       loanRef: newLoanRef,
@@ -535,49 +614,78 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
       return { success: false, message: `Loan record ${loanRef} not found.` };
     }
 
+    const book = books.find(b => b.callNo === loan.bookCallNo);
+    const scholar = scholars.find(s => s.id === loan.scholarId);
     const returnDateStr = '24 Oct 1888';
+    const repairFee = hasDamage ? settings.binderyFee : 0;
+    const newAvail = book ? book.availableCopies + 1 : 1;
+    const newStatus: Book['status'] = newAvail > 0 ? 'AVAILABLE' : (book?.status || 'AVAILABLE');
 
+    // 1. Optimistic updates
     setLoans(prev =>
-      prev.map(l => {
-        if (l.ref === loanRef) {
-          return {
-            ...l,
-            returnDate: returnDateStr,
-            status: 'RETURNED',
-            condition: condition,
-            repairFee: hasDamage ? 150 : 0
-          };
-        }
-        return l;
-      })
+      prev.map(l =>
+        l.ref === loanRef
+          ? {
+              ...l,
+              returnDate: returnDateStr,
+              status: 'RETURNED',
+              condition,
+              repairFee
+            }
+          : l
+      )
     );
 
-    // Restore book availability
-    setBooks(prev =>
-      prev.map(b => {
-        if (b.callNo === loan.bookCallNo) {
-          const newAvail = b.availableCopies + 1;
-          return {
-            ...b,
-            availableCopies: newAvail,
-            status: newAvail > 0 ? 'AVAILABLE' : b.status
-          };
-        }
-        return b;
-      })
-    );
+    if (book) {
+      setBooks(prev =>
+        prev.map(b => (b.callNo === loan.bookCallNo ? { ...b, availableCopies: newAvail, status: newStatus } : b))
+      );
+    }
 
-    // Update scholar loan count
-    setScholars(prev =>
-      prev.map(s => {
-        if (s.id === loan.scholarId && s.activeLoansCount > 0) {
-          return { ...s, activeLoansCount: s.activeLoansCount - 1 };
-        }
-        return s;
-      })
-    );
+    if (scholar && scholar.activeLoansCount > 0) {
+      setScholars(prev =>
+        prev.map(s => (s.id === loan.scholarId ? { ...s, activeLoansCount: s.activeLoansCount - 1 } : s))
+      );
+    }
 
     showToast(`Volume ${loan.bookCallNo} returned and restocked in stacks. Quittance recorded!`, 'inventory_2');
+
+    // 2. Real database operations
+    if (supabase) {
+      (async () => {
+        try {
+          const { error: loanErr } = await supabase
+            .from('loans')
+            .update({
+              return_date: returnDateStr,
+              status: 'RETURNED',
+              condition,
+              repair_fee: repairFee
+            })
+            .eq('ref', loanRef);
+          if (loanErr) throw loanErr;
+
+          if (book) {
+            const { error: bookErr } = await supabase
+              .from('books')
+              .update({ available_copies: newAvail, status: newStatus })
+              .eq('call_no', loan.bookCallNo);
+            if (bookErr) throw bookErr;
+          }
+
+          if (scholar) {
+            const { error: scholarErr } = await supabase
+              .from('scholars')
+              .update({ active_loans_count: Math.max(0, scholar.activeLoansCount - 1) })
+              .eq('id', loan.scholarId);
+            if (scholarErr) throw scholarErr;
+          }
+        } catch (dbErr: any) {
+          console.error('Supabase returnBook write error:', dbErr);
+          showToast(`Note: Returned locally; database sync failed: ${dbErr.message || dbErr}`, 'warning', 'warning');
+        }
+      })();
+    }
 
     return { success: true, message: `Return recorded for ${loanRef}.` };
   };
@@ -587,20 +695,68 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
       ...bookData,
       availableCopies: bookData.totalCopies
     };
+
+    // 1. Optimistic update
     setBooks(prev => [newBook, ...prev]);
     showToast(`New acquisition "${bookData.title}" recorded in the Scriptorium!`, 'bookmark_add');
+
+    // 2. Real database operations
+    if (supabase) {
+      (async () => {
+        try {
+          const { error } = await supabase.from('books').insert(mapBookToDb(newBook));
+          if (error) throw error;
+        } catch (dbErr: any) {
+          console.error('Supabase addBook write error:', dbErr);
+          showToast(`Note: Folio registered locally; database sync failed: ${dbErr.message || dbErr}`, 'warning', 'warning');
+        }
+      })();
+    }
   };
 
   const reserveBook = (callNo: string) => {
+    // 1. Optimistic update
     setBooks(prev =>
-      prev.map(b => {
-        if (b.callNo === callNo) {
-          return { ...b, status: 'RESERVED' };
-        }
-        return b;
-      })
+      prev.map(b => (b.callNo === callNo ? { ...b, status: 'RESERVED' } : b))
     );
     showToast(`Hold slip attached to catalog folio ${callNo}.`, 'bookmark');
+
+    // 2. Real database operations
+    if (supabase) {
+      (async () => {
+        try {
+          const { error } = await supabase.from('books').update({ status: 'RESERVED' }).eq('call_no', callNo);
+          if (error) throw error;
+        } catch (dbErr: any) {
+          console.error('Supabase reserveBook write error:', dbErr);
+        }
+      })();
+    }
+  };
+
+  const updateSettings = (newSettings: Partial<LibrarySettings>) => {
+    const merged = { ...settings, ...newSettings };
+    setSettings(merged);
+    showToast('Library desk and archival statutes updated successfully.', 'check_circle');
+
+    if (supabase) {
+      (async () => {
+        try {
+          const { error } = await supabase.from('library_settings').upsert({
+            id: 1,
+            term_name: merged.termName,
+            daily_fine_rate: merged.dailyFineRate,
+            bindery_fee: merged.binderyFee,
+            max_loan_days: merged.maxLoanDays,
+            chaperone_required: merged.chaperoneRequired,
+            updated_at: new Date().toISOString()
+          });
+          if (error) throw error;
+        } catch (dbErr: any) {
+          console.error('Supabase updateSettings write error:', dbErr);
+        }
+      })();
+    }
   };
 
   return (
@@ -610,15 +766,20 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
         scholars,
         loans,
         sessionDispatches,
+        settings,
         toast,
+        isLoading,
+        isDbConnected,
         showToast,
         hideToast,
         lendBook,
         returnBook,
         addBook,
         reserveBook,
+        updateSettings,
         searchQuery,
-        setSearchQuery
+        setSearchQuery,
+        refreshData
       }}
     >
       {children}

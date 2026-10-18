@@ -3,8 +3,17 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useLibrary, LoanRecord } from '@/context/LibraryContext';
+import RoleGuard from '@/components/RoleGuard';
 
 export default function DashboardPage() {
+  return (
+    <RoleGuard allowedRoles={['librarian', 'admin']}>
+      <DashboardContent />
+    </RoleGuard>
+  );
+}
+
+function DashboardContent() {
   const { books, loans, showToast } = useLibrary();
   const [filterType, setFilterType] = useState<'all' | 'overdue' | 'restocked'>('all');
   const [activePage, setActivePage] = useState(1);

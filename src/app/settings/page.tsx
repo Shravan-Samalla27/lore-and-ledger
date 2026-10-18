@@ -1,20 +1,43 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLibrary } from '@/context/LibraryContext';
+import RoleGuard from '@/components/RoleGuard';
 
 export default function SettingsPage() {
-  const { showToast } = useLibrary();
+  return (
+    <RoleGuard allowedRoles={['librarian', 'admin']}>
+      <SettingsContent />
+    </RoleGuard>
+  );
+}
 
-  const [termName, setTermName] = useState('Michaelmas Term 1888');
-  const [dailyFineRate, setDailyFineRate] = useState(50);
-  const [binderyFee, setBinderyFee] = useState(150);
-  const [maxLoanDays, setMaxLoanDays] = useState(28);
-  const [chaperoneRequired, setChaperoneRequired] = useState(true);
+function SettingsContent() {
+  const { settings, updateSettings } = useLibrary();
+
+  const [termName, setTermName] = useState(settings.termName);
+  const [dailyFineRate, setDailyFineRate] = useState(settings.dailyFineRate);
+  const [binderyFee, setBinderyFee] = useState(settings.binderyFee);
+  const [maxLoanDays, setMaxLoanDays] = useState(settings.maxLoanDays);
+  const [chaperoneRequired, setChaperoneRequired] = useState(settings.chaperoneRequired);
+
+  useEffect(() => {
+    setTermName(settings.termName);
+    setDailyFineRate(settings.dailyFineRate);
+    setBinderyFee(settings.binderyFee);
+    setMaxLoanDays(settings.maxLoanDays);
+    setChaperoneRequired(settings.chaperoneRequired);
+  }, [settings]);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    showToast('Library desk and archival statutes updated successfully.', 'check_circle');
+    updateSettings({
+      termName,
+      dailyFineRate,
+      binderyFee,
+      maxLoanDays,
+      chaperoneRequired
+    });
   };
 
   return (
