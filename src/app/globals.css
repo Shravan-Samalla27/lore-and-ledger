@@ -1,0 +1,258 @@
+@import url('https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Literata:ital,opsz,wght@0,7..72,200..900;1,7..72,200..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #042217;
+  --color-primary-container: #1b382b;
+  --color-on-primary: #ffffff;
+  --color-on-primary-container: #82a291;
+  --color-primary-fixed: #c9ead7;
+  --color-primary-fixed-dim: #adcebc;
+  --color-on-primary-fixed: #022015;
+  --color-on-primary-fixed-variant: #304d3f;
+
+  --color-secondary: #775a19;
+  --color-secondary-container: #fed488;
+  --color-on-secondary: #ffffff;
+  --color-on-secondary-container: #785a1a;
+  --color-secondary-fixed: #ffdea5;
+  --color-secondary-fixed-dim: #e9c176;
+  --color-on-secondary-fixed: #261900;
+  --color-on-secondary-fixed-variant: #5d4201;
+
+  --color-tertiary: #43020c;
+  --color-tertiary-container: #60181f;
+  --color-on-tertiary: #ffffff;
+  --color-on-tertiary-container: #e37d80;
+  --color-tertiary-fixed: #ffdad9;
+  --color-tertiary-fixed-dim: #ffb3b3;
+  --color-on-tertiary-fixed: #40010a;
+  --color-on-tertiary-fixed-variant: #7b2c31;
+
+  --color-surface: #fff8f5;
+  --color-surface-dim: #edd5c8;
+  --color-surface-bright: #fff8f5;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #fff1ea;
+  --color-surface-container: #ffeadf;
+  --color-surface-container-high: #fce3d6;
+  --color-surface-container-highest: #f6ded1;
+  --color-on-surface: #251911;
+  --color-on-surface-variant: #424844;
+  --color-surface-variant: #f6ded1;
+  --color-inverse-surface: #3c2d25;
+  --color-inverse-on-surface: #ffede4;
+  --color-surface-tint: #476556;
+
+  --color-background: #fff8f5;
+  --color-on-background: #251911;
+  --color-outline: #727974;
+  --color-outline-variant: #c2c8c2;
+  --color-error: #ba1a1a;
+  --color-error-container: #ffdad6;
+  --color-on-error: #ffffff;
+  --color-on-error-container: #93000a;
+
+  --spacing-space-xs: 0.25rem;
+  --spacing-space-sm: 0.5rem;
+  --spacing-space-md: 1rem;
+  --spacing-space-lg: 1.5rem;
+  --spacing-space-xl: 2.5rem;
+  --spacing-gutter: 1.5rem;
+  --spacing-gutter-mobile: 0.75rem;
+  --spacing-margin: 2.5rem;
+  --spacing-margin-mobile: 1rem;
+  --spacing-space-margin: 2.5rem;
+
+  --font-eb-garamond: 'EB Garamond', serif;
+  --font-literata: 'Literata', serif;
+  --font-courier-prime: 'Courier Prime', monospace;
+}
+
+:root {
+  --background: #fff8f5;
+  --foreground: #251911;
+}
+
+body {
+  background-color: #fff8f5;
+  color: #251911;
+  font-family: 'Literata', Georgia, serif;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Material Symbols configuration */
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined' !important;
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'liga';
+}
+
+/* Custom typography classes */
+.font-display-lg {
+  font-family: 'EB Garamond', serif;
+  font-size: 48px;
+  line-height: 56px;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+
+.font-display-lg-mobile {
+  font-family: 'EB Garamond', serif;
+  font-size: 34px;
+  line-height: 42px;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+
+.font-headline-lg {
+  font-family: 'EB Garamond', serif;
+  font-size: 32px;
+  line-height: 40px;
+  font-weight: 500;
+}
+
+.font-headline-md {
+  font-family: 'EB Garamond', serif;
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 500;
+}
+
+.font-headline-sm {
+  font-family: 'EB Garamond', serif;
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 600;
+}
+
+.font-body-lg {
+  font-family: 'Literata', serif;
+  font-size: 18px;
+  line-height: 28px;
+  font-weight: 400;
+}
+
+.font-body-md {
+  font-family: 'Literata', serif;
+  font-size: 15px;
+  line-height: 24px;
+  font-weight: 400;
+}
+
+.font-body-sm {
+  font-family: 'Literata', serif;
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 400;
+}
+
+.font-code-ledger {
+  font-family: 'Courier Prime', monospace;
+  font-size: 13px;
+  line-height: 18px;
+  letter-spacing: 0.04em;
+  font-weight: 400;
+}
+
+.font-stamp-label {
+  font-family: 'Courier Prime', monospace;
+  font-size: 11px;
+  line-height: 14px;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+}
+
+/* Parchment and Archival Tactile Effects */
+.bg-parchment-texture {
+  background-color: #fbf7ee;
+  background-image: radial-gradient(rgba(43, 30, 22, 0.04) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
+.shadow-brass-inset {
+  box-shadow: inset 0 1px 3px rgba(43, 30, 22, 0.12);
+}
+
+.shadow-card-folio {
+  box-shadow: 0 1px 3px rgba(43, 30, 22, 0.08), 0 4px 12px -2px rgba(43, 30, 22, 0.1);
+}
+
+.border-perforated {
+  border-bottom: 1px dashed rgba(43, 30, 22, 0.2);
+}
+
+/* Rubber Stamp Styling */
+.stamp-badge-issued {
+  border: 1.5px solid #1b382b;
+  color: #1b382b;
+  transform: rotate(-1.5deg);
+  font-family: 'Courier Prime', monospace;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 2px;
+  background: rgba(27, 56, 43, 0.06);
+}
+
+.stamp-badge-overdue {
+  border: 2px double #6b2026;
+  color: #6b2026;
+  transform: rotate(1deg);
+  font-family: 'Courier Prime', monospace;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 2px;
+  background: rgba(107, 32, 38, 0.08);
+}
+
+.stamp-badge-returned {
+  border: 1.5px solid #775a19;
+  color: #775a19;
+  transform: rotate(-0.5deg);
+  font-family: 'Courier Prime', monospace;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 2px;
+  background: rgba(119, 90, 25, 0.06);
+}
+
+/* Vintage ink stamping animation */
+@keyframes stampIn {
+  0% {
+    transform: scale(2.2) rotate(-8deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(0.95) rotate(2deg);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1) rotate(-1.5deg);
+    opacity: 1;
+  }
+}
+
+.animate-stamp {
+  animation: stampIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
