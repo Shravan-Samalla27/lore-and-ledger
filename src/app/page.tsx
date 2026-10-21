@@ -7,7 +7,7 @@ import RoleGuard from '@/components/RoleGuard';
 
 export default function DashboardPage() {
   return (
-    <RoleGuard allowedRoles={['librarian']}>
+    <RoleGuard allowedRoles={['librarian', 'admin']}>
       <DashboardContent />
     </RoleGuard>
   );

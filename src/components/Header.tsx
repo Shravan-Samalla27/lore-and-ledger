@@ -133,25 +133,18 @@ export default function Header({ onOpenNewAcquisition }: HeaderProps) {
               <span>Catalogue</span>
             </Link>
           </div>
-        ) : role === 'admin' ? (
+        ) : (role === 'admin' || role === 'librarian') ? (
           <div className="flex items-center gap-space-xs">
-            <Link
-              href="/admin"
-              className="inline-flex items-center gap-1.5 px-space-md py-1.5 bg-tertiary text-surface-bright rounded border border-tertiary/60 font-body-sm text-body-sm shadow hover:bg-tertiary-container transition-colors"
-            >
-              <span className="material-symbols-outlined text-[16px]">gavel</span>
-              <span>Chancellor Console</span>
-            </Link>
-            <Link
-              href="/books"
-              className="inline-flex items-center gap-1.5 px-space-md py-1.5 bg-surface-container-high text-on-surface rounded border border-secondary/30 font-body-sm text-body-sm hover:bg-surface-container transition-colors"
-            >
-              <span className="material-symbols-outlined text-[16px] text-secondary">menu_book</span>
-              <span>Catalogue</span>
-            </Link>
-          </div>
-        ) : role === 'librarian' ? (
-          <div className="flex items-center gap-space-xs">
+            {role === 'admin' && (
+              <Link
+                href="/admin"
+                className="inline-flex items-center gap-1.5 px-space-sm py-1.5 bg-tertiary text-surface-bright rounded border border-tertiary/60 font-body-sm text-[12px] shadow hover:bg-tertiary-container transition-colors"
+              >
+                <span className="material-symbols-outlined text-[15px]">gavel</span>
+                <span>Chancellor Console</span>
+              </Link>
+            )}
+
             <Link
               href="/issue-book"
               className="inline-flex items-center gap-1.5 px-space-md py-1.5 bg-primary text-surface-bright rounded border border-secondary/50 font-body-sm text-body-sm shadow hover:bg-primary-container transition-colors"

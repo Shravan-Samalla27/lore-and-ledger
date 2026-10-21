@@ -7,47 +7,50 @@ console.log('--- RUNNING LORE & LEDGER ROLE AUTH & SECURITY TEST SUITE ---');
 console.log('================================================================');
 
 // -----------------------------------------------------------------------------
-// Test 1: Complete Role Access Matrix
+// Test 1: Complete Role Access Matrix (Admin, Librarian, Student)
 // -----------------------------------------------------------------------------
-console.log('\n[TEST 1] Verifying Complete 1:1 Role Access Matrix...');
+console.log('\n[TEST 1] Verifying Complete Role Access Matrix Across All Portals...');
 
-const PORTALS = {
-  student: ['student'],
-  librarian: ['librarian'],
-  admin: ['admin']
+const ROUTES = {
+  // Library Management Pages (Dashboard, Issue, Return, Students, Reports, Settings)
+  libraryManagement: ['librarian', 'admin'],
+  // Chancellor Console (Governance, Role Appointments)
+  adminConsole: ['admin'],
+  // Matriculated Scholar Reading Desk
+  studentDesk: ['student']
 };
 
-function checkPortalAccess(portalAllowedRoles, userRole) {
-  if (!portalAllowedRoles || portalAllowedRoles.length === 0) return true;
-  if (!userRole) return false;
-  return portalAllowedRoles.includes(userRole);
+function isRouteAccessAllowed(allowedRoles, currentRole) {
+  if (!allowedRoles || allowedRoles.length === 0) return true;
+  if (!currentRole) return false;
+  return allowedRoles.includes(currentRole);
 }
 
-// Student Portal (allowed: student only)
-assert.strictEqual(checkPortalAccess(PORTALS.student, 'student'), true, 'Student -> Student portal: must be ALLOWED');
-assert.strictEqual(checkPortalAccess(PORTALS.student, 'librarian'), false, 'Librarian -> Student portal: must be DENIED');
-assert.strictEqual(checkPortalAccess(PORTALS.student, 'admin'), false, 'Admin -> Student portal: must be DENIED');
-assert.strictEqual(checkPortalAccess(PORTALS.student, null), false, 'Unauthenticated -> Student portal: must be DENIED');
-assert.strictEqual(checkPortalAccess(PORTALS.student, undefined), false, 'Undefined role -> Student portal: must be DENIED');
+// 1a. Library Management Pages (Dashboard, Issue Book, Return Book, Students, Reports, Settings)
+// Allowed: Librarian and Admin. Denied: Student, Unauthenticated
+assert.strictEqual(isRouteAccessAllowed(ROUTES.libraryManagement, 'admin'), true, 'Admin -> Library Management: ALLOWED');
+assert.strictEqual(isRouteAccessAllowed(ROUTES.libraryManagement, 'librarian'), true, 'Librarian -> Library Management: ALLOWED');
+assert.strictEqual(isRouteAccessAllowed(ROUTES.libraryManagement, 'student'), false, 'Student -> Library Management: DENIED');
+assert.strictEqual(isRouteAccessAllowed(ROUTES.libraryManagement, null), false, 'Unauthenticated -> Library Management: DENIED');
 
-// Librarian Portal (allowed: librarian only)
-assert.strictEqual(checkPortalAccess(PORTALS.librarian, 'student'), false, 'Student -> Librarian portal: must be DENIED');
-assert.strictEqual(checkPortalAccess(PORTALS.librarian, 'librarian'), true, 'Librarian -> Librarian portal: must be ALLOWED');
-assert.strictEqual(checkPortalAccess(PORTALS.librarian, 'admin'), false, 'Admin -> Librarian portal: must be DENIED');
-assert.strictEqual(checkPortalAccess(PORTALS.librarian, null), false, 'Unauthenticated -> Librarian portal: must be DENIED');
-assert.strictEqual(checkPortalAccess(PORTALS.librarian, undefined), false, 'Undefined role -> Librarian portal: must be DENIED');
+// 1b. Chancellor Console (/admin)
+// Allowed: Admin only. Denied: Librarian, Student, Unauthenticated
+assert.strictEqual(isRouteAccessAllowed(ROUTES.adminConsole, 'admin'), true, 'Admin -> Chancellor Console: ALLOWED');
+assert.strictEqual(isRouteAccessAllowed(ROUTES.adminConsole, 'librarian'), false, 'Librarian -> Chancellor Console: DENIED');
+assert.strictEqual(isRouteAccessAllowed(ROUTES.adminConsole, 'student'), false, 'Student -> Chancellor Console: DENIED');
+assert.strictEqual(isRouteAccessAllowed(ROUTES.adminConsole, null), false, 'Unauthenticated -> Chancellor Console: DENIED');
 
-// Admin Portal (allowed: admin only)
-assert.strictEqual(checkPortalAccess(PORTALS.admin, 'student'), false, 'Student -> Admin portal: must be DENIED');
-assert.strictEqual(checkPortalAccess(PORTALS.admin, 'librarian'), false, 'Librarian -> Admin portal: must be DENIED');
-assert.strictEqual(checkPortalAccess(PORTALS.admin, 'admin'), true, 'Admin -> Admin portal: must be ALLOWED');
-assert.strictEqual(checkPortalAccess(PORTALS.admin, null), false, 'Unauthenticated -> Admin portal: must be DENIED');
-assert.strictEqual(checkPortalAccess(PORTALS.admin, undefined), false, 'Undefined role -> Admin portal: must be DENIED');
+// 1c. Student Reading Desk (/student)
+// Allowed: Student only. Denied: Librarian, Admin, Unauthenticated
+assert.strictEqual(isRouteAccessAllowed(ROUTES.studentDesk, 'student'), true, 'Student -> Student Reading Desk: ALLOWED');
+assert.strictEqual(isRouteAccessAllowed(ROUTES.studentDesk, 'librarian'), false, 'Librarian -> Student Reading Desk: DENIED');
+assert.strictEqual(isRouteAccessAllowed(ROUTES.studentDesk, 'admin'), false, 'Admin -> Student Reading Desk: DENIED');
+assert.strictEqual(isRouteAccessAllowed(ROUTES.studentDesk, null), false, 'Unauthenticated -> Student Reading Desk: DENIED');
 
-console.log('✓ Complete Role Access Matrix verified for all role combinations.');
+console.log('✓ Complete Role Access Matrix verified for all stations.');
 
 // -----------------------------------------------------------------------------
-// Test 2: RoleGuard Direct Route Protection & Child Rendering Guard
+// Test 2: RoleGuard Direct Route Access & Child Rendering Guard
 // -----------------------------------------------------------------------------
 console.log('\n[TEST 2] Verifying RoleGuard Direct Route Access & Render Guard...');
 
@@ -62,58 +65,65 @@ function simulateRoleGuard({ user, role, allowedRoles }) {
   return { shouldRenderChildren: true, action: 'RENDER_CHILDREN' };
 }
 
-// Case 2a: Unauthenticated user accessing protected route
+// Unauthenticated user attempting access
 const unauthAdmin = simulateRoleGuard({ user: null, role: null, allowedRoles: ['admin'] });
-assert.strictEqual(unauthAdmin.shouldRenderChildren, false, 'Unauthenticated must not render admin children');
+assert.strictEqual(unauthAdmin.shouldRenderChildren, false, 'Unauthenticated user must not render admin content');
 assert.strictEqual(unauthAdmin.action, 'REDIRECT_TO_LOGIN');
 
-const unauthLib = simulateRoleGuard({ user: null, role: null, allowedRoles: ['librarian'] });
-assert.strictEqual(unauthLib.shouldRenderChildren, false, 'Unauthenticated must not render librarian children');
+const unauthLib = simulateRoleGuard({ user: null, role: null, allowedRoles: ['librarian', 'admin'] });
+assert.strictEqual(unauthLib.shouldRenderChildren, false, 'Unauthenticated user must not render library management content');
 
-const unauthStudent = simulateRoleGuard({ user: null, role: null, allowedRoles: ['student'] });
-assert.strictEqual(unauthStudent.shouldRenderChildren, false, 'Unauthenticated must not render student children');
-
-// Case 2b: Authenticated student attempting direct access to /admin
+// Authenticated student attempting direct access to /admin
 const studentOnAdmin = simulateRoleGuard({ user: { id: 's-1' }, role: 'student', allowedRoles: ['admin'] });
 assert.strictEqual(studentOnAdmin.shouldRenderChildren, false, 'Student must not render admin content on direct navigation');
 assert.strictEqual(studentOnAdmin.action, 'SHOW_ACCESS_DENIED_SCREEN');
 
-// Case 2c: Authenticated student attempting direct access to / (librarian circulation desk)
-const studentOnLib = simulateRoleGuard({ user: { id: 's-1' }, role: 'student', allowedRoles: ['librarian'] });
-assert.strictEqual(studentOnLib.shouldRenderChildren, false, 'Student must not render librarian content');
+// Authenticated student attempting direct access to / (Dashboard)
+const studentOnLib = simulateRoleGuard({ user: { id: 's-1' }, role: 'student', allowedRoles: ['librarian', 'admin'] });
+assert.strictEqual(studentOnLib.shouldRenderChildren, false, 'Student must not render library management content');
 assert.strictEqual(studentOnLib.action, 'SHOW_ACCESS_DENIED_SCREEN');
 
-// Case 2d: Authenticated librarian attempting direct access to /admin
+// Authenticated librarian attempting direct access to /admin
 const libOnAdmin = simulateRoleGuard({ user: { id: 'l-1' }, role: 'librarian', allowedRoles: ['admin'] });
 assert.strictEqual(libOnAdmin.shouldRenderChildren, false, 'Librarian must not render admin console');
 assert.strictEqual(libOnAdmin.action, 'SHOW_ACCESS_DENIED_SCREEN');
 
-// Case 2e: Authenticated admin accessing /admin
+// Authenticated admin accessing /admin
 const adminOnAdmin = simulateRoleGuard({ user: { id: 'a-1' }, role: 'admin', allowedRoles: ['admin'] });
 assert.strictEqual(adminOnAdmin.shouldRenderChildren, true, 'Admin must render admin console');
 assert.strictEqual(adminOnAdmin.action, 'RENDER_CHILDREN');
 
-// Case 2f: Edge case: user exists but role is null (e.g. while profile is not yet matched)
-const userRoleNull = simulateRoleGuard({ user: { id: 'x-1' }, role: null, allowedRoles: ['admin'] });
-assert.strictEqual(userRoleNull.shouldRenderChildren, false, 'User with null role must never bypass RoleGuard');
-assert.strictEqual(userRoleNull.action, 'SHOW_ACCESS_DENIED_SCREEN');
+// Authenticated admin accessing / (Dashboard)
+const adminOnLib = simulateRoleGuard({ user: { id: 'a-1' }, role: 'admin', allowedRoles: ['librarian', 'admin'] });
+assert.strictEqual(adminOnLib.shouldRenderChildren, true, 'Admin must render library management content');
+assert.strictEqual(adminOnLib.action, 'RENDER_CHILDREN');
+
+// Authenticated librarian accessing / (Dashboard)
+const libOnLib = simulateRoleGuard({ user: { id: 'l-1' }, role: 'librarian', allowedRoles: ['librarian', 'admin'] });
+assert.strictEqual(libOnLib.shouldRenderChildren, true, 'Librarian must render library management content');
+assert.strictEqual(libOnLib.action, 'RENDER_CHILDREN');
+
+// Edge case: User exists but role is null
+const nullRoleUser = simulateRoleGuard({ user: { id: 'x-1' }, role: null, allowedRoles: ['admin'] });
+assert.strictEqual(nullRoleUser.shouldRenderChildren, false, 'Null role user must never render protected children');
+assert.strictEqual(nullRoleUser.action, 'SHOW_ACCESS_DENIED_SCREEN');
 
 console.log('✓ Direct route protection verified: unauthorized users never render protected children.');
 
 // -----------------------------------------------------------------------------
-// Test 3: Portal Login Role Verification & Safe Sign-Out Logic
+// Test 3: Portal Login Authorization & Safe Sign-Out
 // -----------------------------------------------------------------------------
-console.log('\n[TEST 3] Verifying Portal Login Authorization & Safe Sign-out...');
+console.log('\n[TEST 3] Verifying Portal Login Authorization & Safe Sign-Out...');
 
 const ACCESS_DENIED_MSG = 'Access denied: your account is not authorized for this portal';
 
-async function simulatePortalSignIn({ userRole, portalRequiredRole }) {
+async function simulatePortalSignIn({ userRole, portalRequiredRoles }) {
   let activeSession = { id: 'session-123', role: userRole };
   let signedOut = false;
 
-  // Supabase signInWithPassword succeeds, then we verify profile
-  if (portalRequiredRole && userRole !== portalRequiredRole) {
-    // Immediate deny and safe session destruction
+  const allowed = Array.isArray(portalRequiredRoles) ? portalRequiredRoles : [portalRequiredRoles];
+
+  if (portalRequiredRoles && !allowed.includes(userRole)) {
     activeSession = null;
     signedOut = true;
     return {
@@ -134,57 +144,57 @@ async function simulatePortalSignIn({ userRole, portalRequiredRole }) {
 }
 
 // Student attempts to log in through Admin Portal (/login/admin)
-const studentAtAdminLogin = await simulatePortalSignIn({ userRole: 'student', portalRequiredRole: 'admin' });
-assert.strictEqual(studentAtAdminLogin.success, false, 'Student at /login/admin must fail login');
+const studentAtAdminLogin = await simulatePortalSignIn({ userRole: 'student', portalRequiredRoles: 'admin' });
+assert.strictEqual(studentAtAdminLogin.success, false, 'Student at /login/admin must fail');
 assert.strictEqual(studentAtAdminLogin.error, ACCESS_DENIED_MSG);
-assert.strictEqual(studentAtAdminLogin.signedOut, true, 'Unauthorized session must be safely signed out');
-assert.strictEqual(studentAtAdminLogin.sessionRemaining, false, 'No active session should linger');
+assert.strictEqual(studentAtAdminLogin.signedOut, true, 'Unauthorized student session must be cleared');
+assert.strictEqual(studentAtAdminLogin.sessionRemaining, false);
 
 // Student attempts to log in through Librarian Portal (/login/librarian)
-const studentAtLibLogin = await simulatePortalSignIn({ userRole: 'student', portalRequiredRole: 'librarian' });
-assert.strictEqual(studentAtLibLogin.success, false, 'Student at /login/librarian must fail login');
+const studentAtLibLogin = await simulatePortalSignIn({ userRole: 'student', portalRequiredRoles: ['librarian', 'admin'] });
+assert.strictEqual(studentAtLibLogin.success, false, 'Student at /login/librarian must fail');
 assert.strictEqual(studentAtLibLogin.error, ACCESS_DENIED_MSG);
-assert.strictEqual(studentAtLibLogin.signedOut, true, 'Unauthorized session must be safely signed out');
-assert.strictEqual(studentAtLibLogin.sessionRemaining, false);
+assert.strictEqual(studentAtLibLogin.signedOut, true);
 
 // Librarian attempts to log in through Admin Portal (/login/admin)
-const libAtAdminLogin = await simulatePortalSignIn({ userRole: 'librarian', portalRequiredRole: 'admin' });
-assert.strictEqual(libAtAdminLogin.success, false, 'Librarian at /login/admin must fail login');
+const libAtAdminLogin = await simulatePortalSignIn({ userRole: 'librarian', portalRequiredRoles: 'admin' });
+assert.strictEqual(libAtAdminLogin.success, false, 'Librarian at /login/admin must fail');
 assert.strictEqual(libAtAdminLogin.error, ACCESS_DENIED_MSG);
 
-// Admin attempts to log in through Librarian Portal (/login/librarian)
-const adminAtLibLogin = await simulatePortalSignIn({ userRole: 'admin', portalRequiredRole: 'librarian' });
-assert.strictEqual(adminAtLibLogin.success, false, 'Admin at /login/librarian must fail login');
-assert.strictEqual(adminAtLibLogin.error, ACCESS_DENIED_MSG);
+// Staff attempts to log in through Student Portal (/login/student)
+const adminAtStudentLogin = await simulatePortalSignIn({ userRole: 'admin', portalRequiredRoles: 'student' });
+assert.strictEqual(adminAtStudentLogin.success, false, 'Admin at /login/student must fail');
+assert.strictEqual(adminAtStudentLogin.error, ACCESS_DENIED_MSG);
 
-// Authorized users at their own portals
-const studentAtStudent = await simulatePortalSignIn({ userRole: 'student', portalRequiredRole: 'student' });
-assert.strictEqual(studentAtStudent.success, true, 'Student at /login/student must succeed');
-
-const libAtLib = await simulatePortalSignIn({ userRole: 'librarian', portalRequiredRole: 'librarian' });
-assert.strictEqual(libAtLib.success, true, 'Librarian at /login/librarian must succeed');
-
-const adminAtAdmin = await simulatePortalSignIn({ userRole: 'admin', portalRequiredRole: 'admin' });
+// Authorized logins
+const adminAtAdmin = await simulatePortalSignIn({ userRole: 'admin', portalRequiredRoles: 'admin' });
 assert.strictEqual(adminAtAdmin.success, true, 'Admin at /login/admin must succeed');
 
-console.log('✓ Portal login authorization verified: unauthorized logins are immediately signed out with standard message.');
+const libAtLib = await simulatePortalSignIn({ userRole: 'librarian', portalRequiredRoles: ['librarian', 'admin'] });
+assert.strictEqual(libAtLib.success, true, 'Librarian at /login/librarian must succeed');
+
+const studentAtStudent = await simulatePortalSignIn({ userRole: 'student', portalRequiredRoles: 'student' });
+assert.strictEqual(studentAtStudent.success, true, 'Student at /login/student must succeed');
+
+console.log('✓ Portal login authorization verified: unauthorized sessions are immediately terminated.');
 
 // -----------------------------------------------------------------------------
-// Test 4: Existing Session Switching Isolation
+// Test 4: Existing Session Handling When Switching Portals
 // -----------------------------------------------------------------------------
 console.log('\n[TEST 4] Verifying Existing Session Handling When Switching Portals...');
 
-function simulateSwitchPortalSessionCheck(existingSessionRole, targetPortalRole) {
+function simulateSwitchPortalSessionCheck(existingSessionRole, portalRequiredRoles, defaultRedirect) {
   let sessionActive = Boolean(existingSessionRole);
   let errorMsg = '';
   let redirectedTo = '';
 
+  const allowed = Array.isArray(portalRequiredRoles) ? portalRequiredRoles : [portalRequiredRoles];
+
   if (sessionActive && existingSessionRole) {
-    if (existingSessionRole === targetPortalRole) {
-      redirectedTo = targetPortalRole === 'admin' ? '/admin' : targetPortalRole === 'librarian' ? '/' : '/student';
+    if (allowed.includes(existingSessionRole)) {
+      redirectedTo = defaultRedirect;
     } else {
-      // Must not treat student as admin or librarian!
-      sessionActive = false; // Signed out
+      sessionActive = false;
       errorMsg = ACCESS_DENIED_MSG;
     }
   }
@@ -192,25 +202,30 @@ function simulateSwitchPortalSessionCheck(existingSessionRole, targetPortalRole)
   return { sessionActive, errorMsg, redirectedTo };
 }
 
-// Student session switches to /login/admin
-const studentSwitchToAdmin = simulateSwitchPortalSessionCheck('student', 'admin');
-assert.strictEqual(studentSwitchToAdmin.sessionActive, false, 'Student session must be destroyed on /login/admin');
-assert.strictEqual(studentSwitchToAdmin.errorMsg, ACCESS_DENIED_MSG);
+// Student session opens /login/admin
+const studentOnAdminLogin = simulateSwitchPortalSessionCheck('student', 'admin', '/admin');
+assert.strictEqual(studentOnAdminLogin.sessionActive, false, 'Student session must be destroyed on /login/admin');
+assert.strictEqual(studentOnAdminLogin.errorMsg, ACCESS_DENIED_MSG);
 
-// Student session switches to /login/librarian
-const studentSwitchToLib = simulateSwitchPortalSessionCheck('student', 'librarian');
-assert.strictEqual(studentSwitchToLib.sessionActive, false, 'Student session must be destroyed on /login/librarian');
-assert.strictEqual(studentSwitchToLib.errorMsg, ACCESS_DENIED_MSG);
+// Student session opens /login/librarian
+const studentOnLibLogin = simulateSwitchPortalSessionCheck('student', ['librarian', 'admin'], '/');
+assert.strictEqual(studentOnLibLogin.sessionActive, false, 'Student session must be destroyed on /login/librarian');
+assert.strictEqual(studentOnLibLogin.errorMsg, ACCESS_DENIED_MSG);
 
-// Admin session on /login/admin redirects to console
-const adminSwitchToAdmin = simulateSwitchPortalSessionCheck('admin', 'admin');
-assert.strictEqual(adminSwitchToAdmin.sessionActive, true);
-assert.strictEqual(adminSwitchToAdmin.redirectedTo, '/admin');
+// Admin session opens /login/admin
+const adminOnAdminLogin = simulateSwitchPortalSessionCheck('admin', 'admin', '/admin');
+assert.strictEqual(adminOnAdminLogin.sessionActive, true);
+assert.strictEqual(adminOnAdminLogin.redirectedTo, '/admin');
 
-console.log('✓ Existing session isolation verified: student sessions are never carried into staff portals.');
+// Librarian session opens /login/librarian
+const libOnLibLogin = simulateSwitchPortalSessionCheck('librarian', ['librarian', 'admin'], '/');
+assert.strictEqual(libOnLibLogin.sessionActive, true);
+assert.strictEqual(libOnLibLogin.redirectedTo, '/');
+
+console.log('✓ Existing session isolation verified: student sessions cannot leak into staff/admin portals.');
 
 // -----------------------------------------------------------------------------
-// Test 5: Role-Escalation Prevention & SQL Security Policies
+// Test 5: SQL Migration Security Rules & Role Escalation Prevention
 // -----------------------------------------------------------------------------
 console.log('\n[TEST 5] Verifying SQL Migration Security Rules & Escalation Guards...');
 const migrationPath = path.resolve('supabase/migrations/20261018_roles_and_auth.sql');

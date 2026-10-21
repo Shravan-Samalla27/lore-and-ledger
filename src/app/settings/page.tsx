@@ -6,7 +6,7 @@ import RoleGuard from '@/components/RoleGuard';
 
 export default function SettingsPage() {
   return (
-    <RoleGuard allowedRoles={['librarian']}>
+    <RoleGuard allowedRoles={['librarian', 'admin']}>
       <SettingsContent />
     </RoleGuard>
   );

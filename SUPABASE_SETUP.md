@@ -87,7 +87,7 @@ To link a student user account to their collegiate scholar folio:
 | :--- | :--- | :--- | :--- |
 | **Student** | `/login/student` | Reading Desk (`/student`), browse catalogue (`/books`), personal loans, due dates, caution deposit | Strictly denied from staff circulation desk (`/`, `/issue-book`, `/return-book`, `/students`, `/reports`, `/settings`) and Chancellor console (`/admin`) |
 | **Librarian** | `/login/librarian` | Circulation Desk (`/`), Issue Folio (`/issue-book`), Return Folio (`/return-book`), Students Register (`/students`), Audit Reports (`/reports`), Statutes (`/settings`), browse catalogue (`/books`) | Strictly denied from Chancellor admin console (`/admin`) and Scholar Reading Desk (`/student`) |
-| **Admin** | `/login/admin` | High Chancellor Console (`/admin`) for staff role appointments and scholar folio linking, browse catalogue (`/books`) | Strictly denied from staff circulation desk and Scholar Reading Desk |
+| **Admin** | `/login/admin` | Full Administrative & Library Management: High Chancellor Console (`/admin`), Circulation Desk (`/`), Issue Folio (`/issue-book`), Return Folio (`/return-book`), Students Register (`/students`), Audit Reports (`/reports`), Statutes (`/settings`), browse catalogue (`/books`) | Strictly denied from Scholar Reading Desk (`/student`) |
 | **Gateway** | `/login` | Station selection portal with antique seal cards | N/A |
 
 ---

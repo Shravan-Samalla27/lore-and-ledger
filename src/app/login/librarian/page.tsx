@@ -21,10 +21,10 @@ export default function LibrarianLoginPage() {
   React.useEffect(() => {
     if (isLoadingAuth) return;
     if (user && role) {
-      if (role === 'librarian') {
+      if (role === 'librarian' || role === 'admin') {
         router.replace('/');
       } else {
-        // A student or admin session must never be treated as a librarian session
+        // A student session must never be treated as a librarian/staff session
         signOut();
         setErrorMessage('Access denied: your account is not authorized for this portal');
       }
@@ -36,7 +36,7 @@ export default function LibrarianLoginPage() {
     setErrorMessage('');
     setIsLoading(true);
 
-    const res = await signIn(email, password, 'librarian');
+    const res = await signIn(email, password, ['librarian', 'admin']);
 
     if (!res.success) {
       setIsLoading(false);
@@ -45,7 +45,7 @@ export default function LibrarianLoginPage() {
     }
 
     // Role verification
-    if (res.profile?.role !== 'librarian') {
+    if (res.profile?.role !== 'librarian' && res.profile?.role !== 'admin') {
       setIsLoading(false);
       await signOut();
       setErrorMessage('Access denied: your account is not authorized for this portal');

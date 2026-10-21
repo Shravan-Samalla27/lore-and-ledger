@@ -9,7 +9,7 @@ import RoleGuard from '@/components/RoleGuard';
 
 export default function ReturnBookPage() {
   return (
-    <RoleGuard allowedRoles={['librarian']}>
+    <RoleGuard allowedRoles={['librarian', 'admin']}>
       <Suspense fallback={<div className="p-8 font-code-ledger text-secondary">Loading Return Desk Register...</div>}>
         <ReturnBookContent />
       </Suspense>

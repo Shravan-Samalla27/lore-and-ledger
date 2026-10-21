@@ -23,7 +23,7 @@ interface AuthContextType {
   signIn: (
     email: string,
     password: string,
-    requiredRole?: UserRole
+    requiredRole?: UserRole | UserRole[]
   ) => Promise<{
     success: boolean;
     user?: User;
@@ -150,7 +150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = async (
     email: string,
     password: string,
-    requiredRole?: UserRole
+    requiredRole?: UserRole | UserRole[]
   ): Promise<{ success: boolean; user?: User; profile?: UserProfile | null; error?: string }> => {
     if (!supabase) {
       return {
@@ -194,19 +194,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const prof = await fetchProfile(data.user.id, data.user.email || cleanEmail);
 
         // Strict portal role verification
-        if (requiredRole && (!prof || prof.role !== requiredRole)) {
-          // Immediately deny access and sign out the unauthorized session safely
-          try {
-            await supabase.auth.signOut();
-          } catch (signoutErr) {
-            console.warn('Sign out cleanup error on role mismatch:', signoutErr);
+        if (requiredRole) {
+          const allowed = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
+          if (!prof || !allowed.includes(prof.role)) {
+            // Immediately deny access and sign out the unauthorized session safely
+            try {
+              await supabase.auth.signOut();
+            } catch (signoutErr) {
+              console.warn('Sign out cleanup error on role mismatch:', signoutErr);
+            }
+            setUser(null);
+            setProfile(null);
+            return {
+              success: false,
+              error: 'Access denied: your account is not authorized for this portal'
+            };
           }
-          setUser(null);
-          setProfile(null);
-          return {
-            success: false,
-            error: 'Access denied: your account is not authorized for this portal'
-          };
         }
 
         setUser(data.user);
