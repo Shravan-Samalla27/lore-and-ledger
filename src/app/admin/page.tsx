@@ -9,14 +9,14 @@ import RoleGuard from '@/components/RoleGuard';
 
 export default function AdminConsolePage() {
   return (
-    <RoleGuard allowedRoles={['admin']}>
+    <RoleGuard allowedRoles={['admin']} redirectTo="/login/admin">
       <AdminConsoleContent />
     </RoleGuard>
   );
 }
 
 function AdminConsoleContent() {
-  const { user } = useAuth();
+  const { user, role, isLoading } = useAuth();
   const { scholars, showToast } = useLibrary();
 
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
@@ -24,7 +24,11 @@ function AdminConsoleContent() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const fetchProfiles = async () => {
-    if (!supabase) return;
+    // Fail closed: only verified admin may query profiles
+    if (!supabase || role !== 'admin') {
+      setIsLoadingProfiles(false);
+      return;
+    }
     try {
       setIsLoadingProfiles(true);
       const { data, error } = await supabase
@@ -52,11 +56,18 @@ function AdminConsoleContent() {
   };
 
   useEffect(() => {
-    fetchProfiles();
-  }, []);
+    if (role === 'admin') {
+      fetchProfiles();
+    } else {
+      setIsLoadingProfiles(false);
+    }
+  }, [role]);
 
   const handleUpdateRole = async (targetUserId: string, newRole: UserRole) => {
-    if (!supabase) return;
+    if (!supabase || role !== 'admin') {
+      showToast('Unauthorized: Only administrators can appoint stations.', 'warning', 'warning');
+      return;
+    }
     setUpdatingId(targetUserId);
 
     try {
@@ -79,7 +90,10 @@ function AdminConsoleContent() {
   };
 
   const handleLinkScholar = async (targetUserId: string, newScholarId: string) => {
-    if (!supabase) return;
+    if (!supabase || role !== 'admin') {
+      showToast('Unauthorized: Only administrators can link scholar profiles.', 'warning', 'warning');
+      return;
+    }
     setUpdatingId(targetUserId);
 
     try {
@@ -103,6 +117,24 @@ function AdminConsoleContent() {
       setUpdatingId(null);
     }
   };
+
+  // Fail closed: If loading, unauthenticated, or verified role is not strictly admin, never render admin content
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh] font-code-ledger text-secondary">
+        <div className="flex flex-col items-center gap-2">
+          <span className="material-symbols-outlined text-[32px] animate-spin text-primary">
+            hourglass_empty
+          </span>
+          <span>Verifying Archival Credentials...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user || role !== 'admin') {
+    return null;
+  }
 
   return (
     <div className="w-full min-h-screen bg-background px-space-margin py-space-lg">

@@ -191,15 +191,15 @@ CREATE POLICY "Staff can update settings" ON public.library_settings
 
 
 -- PROFILES POLICIES
--- Read: Users can view their own profile; Staff can view all profiles
+-- Read: Users can view their own profile; Only Admins can view all profiles
 DROP POLICY IF EXISTS "View profiles policy" ON public.profiles;
 CREATE POLICY "View profiles policy" ON public.profiles
   FOR SELECT TO authenticated
   USING (
-    id = auth.uid() OR public.get_user_role() IN ('admin', 'librarian')
+    id = auth.uid() OR public.get_user_role() = 'admin'
   );
 
--- Update: Users can update their own name only; Admins can update roles and assign scholar_ids
+-- Update: Users can update their own row; Admins can update any profile
 DROP POLICY IF EXISTS "Update profiles policy" ON public.profiles;
 CREATE POLICY "Update profiles policy" ON public.profiles
   FOR UPDATE TO authenticated
@@ -207,17 +207,36 @@ CREATE POLICY "Update profiles policy" ON public.profiles
     id = auth.uid() OR public.get_user_role() = 'admin'
   )
   WITH CHECK (
-    CASE
-      -- Admins can update any field including role and scholar_id
-      WHEN public.get_user_role() = 'admin' THEN true
-      -- Regular users can only update their own profile AND cannot alter their role or scholar_id
-      WHEN id = auth.uid() THEN (
-        role = (SELECT p.role FROM public.profiles p WHERE p.id = auth.uid())
-        AND scholar_id IS NOT DISTINCT FROM (SELECT p.scholar_id FROM public.profiles p WHERE p.id = auth.uid())
-      )
-      ELSE false
-    END
+    id = auth.uid() OR public.get_user_role() = 'admin'
   );
+
+-- Trigger: Protect role and scholar_id fields entirely in-memory (no recursive subqueries)
+CREATE OR REPLACE FUNCTION public.protect_profile_fields()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  IF public.get_user_role() IS DISTINCT FROM 'admin' THEN
+    IF NEW.role IS DISTINCT FROM OLD.role THEN
+      RAISE EXCEPTION 'Security Violation: Only High Chancellors (admins) may alter station roles.';
+    END IF;
+    IF NEW.scholar_id IS DISTINCT FROM OLD.scholar_id THEN
+      RAISE EXCEPTION 'Security Violation: Only High Chancellors (admins) may link scholar folios.';
+    END IF;
+  END IF;
+
+  NEW.updated_at := NOW();
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_protect_profile_fields ON public.profiles;
+CREATE TRIGGER trg_protect_profile_fields
+  BEFORE UPDATE ON public.profiles
+  FOR EACH ROW
+  EXECUTE FUNCTION public.protect_profile_fields();
 
 -- ==============================================================================
 -- 6. FIRST-ADMIN & STAFF PROVISIONING INSTRUCTIONS

@@ -20,11 +20,11 @@ export default function AdminLoginPage() {
   // Check for existing authenticated sessions when switching portals
   React.useEffect(() => {
     if (isLoadingAuth) return;
-    if (user && role) {
+    if (user) {
       if (role === 'admin') {
         router.replace('/admin');
       } else {
-        // A student or librarian session must never be treated as an admin session
+        // Any non-admin session (librarian, student, or unverified) must never access the admin portal
         signOut();
         setErrorMessage('Access denied: your account is not authorized for this portal');
       }

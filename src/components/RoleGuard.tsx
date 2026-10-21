@@ -19,14 +19,26 @@ export default function RoleGuard({
   const { user, role, isLoading, isConfigured, signOut } = useAuth();
   const router = useRouter();
 
+  // Fail-closed authorization check:
+  // If allowedRoles is specified, role must be defined and present in allowedRoles.
+  const isUnauthorized = Boolean(allowedRoles && (!role || !allowedRoles.includes(role)));
+
   useEffect(() => {
     if (isLoading) return;
 
     // If not logged in, redirect to login
     if (!user) {
       router.push(redirectTo);
+      return;
     }
-  }, [user, isLoading, redirectTo, router]);
+
+    // If authenticated but unauthorized, redirect to authorized portal
+    if (isUnauthorized) {
+      const targetHome =
+        role === 'student' ? '/student' : role === 'librarian' ? '/' : role === 'admin' ? '/admin' : redirectTo;
+      router.replace(targetHome);
+    }
+  }, [user, role, allowedRoles, isUnauthorized, isLoading, redirectTo, router]);
 
   if (isLoading) {
     return (
@@ -62,12 +74,9 @@ export default function RoleGuard({
     );
   }
 
-  // If role is restricted and current user role does not match or is undefined
-  const isUnauthorized = Boolean(allowedRoles && (!role || !allowedRoles.includes(role)));
-
   if (isUnauthorized) {
     const targetHome =
-      role === 'student' ? '/student' : role === 'librarian' ? '/' : role === 'admin' ? '/admin' : '/login';
+      role === 'student' ? '/student' : role === 'librarian' ? '/' : role === 'admin' ? '/admin' : redirectTo;
 
     return (
       <div className="min-h-[60vh] flex items-center justify-center p-space-lg">

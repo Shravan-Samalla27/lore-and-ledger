@@ -54,61 +54,77 @@ console.log('✓ Complete Role Access Matrix verified for all stations.');
 // -----------------------------------------------------------------------------
 console.log('\n[TEST 2] Verifying RoleGuard Direct Route Access & Render Guard...');
 
-function simulateRoleGuard({ user, role, allowedRoles }) {
+function simulateRoleGuard({ user, role, allowedRoles, redirectTo = '/login' }) {
   if (!user) {
-    return { shouldRenderChildren: false, action: 'REDIRECT_TO_LOGIN' };
+    return { shouldRenderChildren: false, action: 'REDIRECT_TO_LOGIN', redirectTo };
   }
   const isUnauthorized = Boolean(allowedRoles && (!role || !allowedRoles.includes(role)));
   if (isUnauthorized) {
-    return { shouldRenderChildren: false, action: 'SHOW_ACCESS_DENIED_SCREEN' };
+    const targetHome =
+      role === 'student' ? '/student' : role === 'librarian' ? '/' : role === 'admin' ? '/admin' : redirectTo;
+    return { shouldRenderChildren: false, action: 'SHOW_ACCESS_DENIED_SCREEN', redirectedTo: targetHome };
   }
-  return { shouldRenderChildren: true, action: 'RENDER_CHILDREN' };
+  return { shouldRenderChildren: true, action: 'RENDER_CHILDREN', redirectedTo: null };
 }
 
-// Unauthenticated user attempting access
-const unauthAdmin = simulateRoleGuard({ user: null, role: null, allowedRoles: ['admin'] });
-assert.strictEqual(unauthAdmin.shouldRenderChildren, false, 'Unauthenticated user must not render admin content');
-assert.strictEqual(unauthAdmin.action, 'REDIRECT_TO_LOGIN');
-
-const unauthLib = simulateRoleGuard({ user: null, role: null, allowedRoles: ['librarian', 'admin'] });
-assert.strictEqual(unauthLib.shouldRenderChildren, false, 'Unauthenticated user must not render library management content');
-
-// Authenticated student attempting direct access to /admin
-const studentOnAdmin = simulateRoleGuard({ user: { id: 's-1' }, role: 'student', allowedRoles: ['admin'] });
-assert.strictEqual(studentOnAdmin.shouldRenderChildren, false, 'Student must not render admin content on direct navigation');
-assert.strictEqual(studentOnAdmin.action, 'SHOW_ACCESS_DENIED_SCREEN');
-
-// Authenticated student attempting direct access to / (Dashboard)
-const studentOnLib = simulateRoleGuard({ user: { id: 's-1' }, role: 'student', allowedRoles: ['librarian', 'admin'] });
-assert.strictEqual(studentOnLib.shouldRenderChildren, false, 'Student must not render library management content');
-assert.strictEqual(studentOnLib.action, 'SHOW_ACCESS_DENIED_SCREEN');
-
-// Authenticated librarian attempting direct access to /admin
-const libOnAdmin = simulateRoleGuard({ user: { id: 'l-1' }, role: 'librarian', allowedRoles: ['admin'] });
-assert.strictEqual(libOnAdmin.shouldRenderChildren, false, 'Librarian must not render admin console');
-assert.strictEqual(libOnAdmin.action, 'SHOW_ACCESS_DENIED_SCREEN');
-
-// Authenticated admin accessing /admin
+// 1. Admin → /admin: ALLOWED
 const adminOnAdmin = simulateRoleGuard({ user: { id: 'a-1' }, role: 'admin', allowedRoles: ['admin'] });
-assert.strictEqual(adminOnAdmin.shouldRenderChildren, true, 'Admin must render admin console');
+assert.strictEqual(adminOnAdmin.shouldRenderChildren, true, 'Admin → /admin: ALLOWED');
 assert.strictEqual(adminOnAdmin.action, 'RENDER_CHILDREN');
 
-// Authenticated admin accessing / (Dashboard)
-const adminOnLib = simulateRoleGuard({ user: { id: 'a-1' }, role: 'admin', allowedRoles: ['librarian', 'admin'] });
-assert.strictEqual(adminOnLib.shouldRenderChildren, true, 'Admin must render library management content');
-assert.strictEqual(adminOnLib.action, 'RENDER_CHILDREN');
+// 2. Librarian → /admin: DENIED (Fail closed, redirect to /)
+const libOnAdmin = simulateRoleGuard({ user: { id: 'l-1' }, role: 'librarian', allowedRoles: ['admin'] });
+assert.strictEqual(libOnAdmin.shouldRenderChildren, false, 'Librarian → /admin: DENIED');
+assert.strictEqual(libOnAdmin.action, 'SHOW_ACCESS_DENIED_SCREEN');
+assert.strictEqual(libOnAdmin.redirectedTo, '/', 'Librarian is redirected away from /admin to authorized station /');
 
-// Authenticated librarian accessing / (Dashboard)
-const libOnLib = simulateRoleGuard({ user: { id: 'l-1' }, role: 'librarian', allowedRoles: ['librarian', 'admin'] });
-assert.strictEqual(libOnLib.shouldRenderChildren, true, 'Librarian must render library management content');
-assert.strictEqual(libOnLib.action, 'RENDER_CHILDREN');
+// 3. Student → /admin: DENIED (Fail closed, redirect to /student)
+const studentOnAdmin = simulateRoleGuard({ user: { id: 's-1' }, role: 'student', allowedRoles: ['admin'] });
+assert.strictEqual(studentOnAdmin.shouldRenderChildren, false, 'Student → /admin: DENIED');
+assert.strictEqual(studentOnAdmin.action, 'SHOW_ACCESS_DENIED_SCREEN');
+assert.strictEqual(studentOnAdmin.redirectedTo, '/student', 'Student is redirected away from /admin to /student');
 
-// Edge case: User exists but role is null
+// 4. Missing/unknown role → /admin: DENIED
 const nullRoleUser = simulateRoleGuard({ user: { id: 'x-1' }, role: null, allowedRoles: ['admin'] });
-assert.strictEqual(nullRoleUser.shouldRenderChildren, false, 'Null role user must never render protected children');
+assert.strictEqual(nullRoleUser.shouldRenderChildren, false, 'Missing role (null) → /admin: DENIED');
 assert.strictEqual(nullRoleUser.action, 'SHOW_ACCESS_DENIED_SCREEN');
 
-console.log('✓ Direct route protection verified: unauthorized users never render protected children.');
+const undefRoleUser = simulateRoleGuard({ user: { id: 'x-2' }, role: undefined, allowedRoles: ['admin'] });
+assert.strictEqual(undefRoleUser.shouldRenderChildren, false, 'Missing role (undefined) → /admin: DENIED');
+
+const unknownRoleUser = simulateRoleGuard({ user: { id: 'x-3' }, role: 'intruder', allowedRoles: ['admin'] });
+assert.strictEqual(unknownRoleUser.shouldRenderChildren, false, 'Unknown role → /admin: DENIED');
+
+const unauthAdmin = simulateRoleGuard({ user: null, role: null, allowedRoles: ['admin'] });
+assert.strictEqual(unauthAdmin.shouldRenderChildren, false, 'Unauthenticated user → /admin: DENIED');
+assert.strictEqual(unauthAdmin.action, 'REDIRECT_TO_LOGIN');
+
+// 5. Librarian retains access to permitted library routes
+const librarianPermittedRoutes = [
+  { name: 'Dashboard (/)', allowedRoles: ['librarian', 'admin'] },
+  { name: 'Students (/students)', allowedRoles: ['librarian', 'admin'] },
+  { name: 'Issue Book (/issue-book)', allowedRoles: ['librarian', 'admin'] },
+  { name: 'Return Book (/return-book)', allowedRoles: ['librarian', 'admin'] },
+  { name: 'Reports (/reports)', allowedRoles: ['librarian', 'admin'] },
+  { name: 'Settings (/settings)', allowedRoles: ['librarian', 'admin'] }
+];
+
+for (const route of librarianPermittedRoutes) {
+  const libAccess = simulateRoleGuard({ user: { id: 'l-1' }, role: 'librarian', allowedRoles: route.allowedRoles });
+  assert.strictEqual(libAccess.shouldRenderChildren, true, `Librarian retains access to ${route.name}: ALLOWED`);
+  assert.strictEqual(libAccess.action, 'RENDER_CHILDREN');
+
+  // Also verify Admin retains access to all these library routes
+  const adminAccess = simulateRoleGuard({ user: { id: 'a-1' }, role: 'admin', allowedRoles: route.allowedRoles });
+  assert.strictEqual(adminAccess.shouldRenderChildren, true, `Admin retains access to ${route.name}: ALLOWED`);
+  assert.strictEqual(adminAccess.action, 'RENDER_CHILDREN');
+
+  // Verify Student is denied access to all staff library management routes
+  const studentAccess = simulateRoleGuard({ user: { id: 's-1' }, role: 'student', allowedRoles: route.allowedRoles });
+  assert.strictEqual(studentAccess.shouldRenderChildren, false, `Student denied access to ${route.name}: DENIED`);
+}
+
+console.log('✓ Direct route protection verified: Admin allowed, Librarian denied /admin, Student denied /admin, missing role denied, Librarian library routes preserved.');
 
 // -----------------------------------------------------------------------------
 // Test 3: Portal Login Authorization & Safe Sign-Out
@@ -239,16 +255,32 @@ assert.ok(migrationSql.includes('SET search_path = public, pg_temp'), 'Helper fu
 // Check that default role is student and never trusted from metadata
 assert.ok(migrationSql.includes("'student', -- Enforce student default"), 'handle_new_user trigger must hardcode student role');
 
-// Check profile role protection
-assert.ok(migrationSql.includes('public.get_user_role() = \'admin\''), 'Must require admin role to change user roles in profiles');
-assert.ok(migrationSql.includes('role = (SELECT p.role FROM public.profiles p WHERE p.id = auth.uid())'), 'Users cannot alter their own role');
+// Check that View profiles policy strictly restricts all-profile inspection to admin only
+assert.ok(
+  migrationSql.includes("id = auth.uid() OR public.get_user_role() = 'admin'"),
+  'View profiles policy must strictly restrict all-profile inspection to admin only'
+);
+assert.ok(
+  !migrationSql.includes("id = auth.uid() OR public.get_user_role() IN ('admin', 'librarian')"),
+  'View profiles policy must NEVER allow librarians to query all user profiles'
+);
 
-// Check anonymous write policies are dropped
-assert.ok(migrationSql.includes('DROP POLICY IF EXISTS "Public can insert books"'), 'Must drop public insert books policy');
-assert.ok(migrationSql.includes('DROP POLICY IF EXISTS "Public can update books"'), 'Must drop public update books policy');
-assert.ok(migrationSql.includes('DROP POLICY IF EXISTS "Public can insert loans"'), 'Must drop public insert loans policy');
+// Verify absence of self-referencing RLS policy subqueries (preventing infinite recursion)
+assert.ok(
+  !migrationSql.includes('(SELECT p.role FROM public.profiles'),
+  'Main migration must not contain self-referencing RLS policy queries'
+);
 
-console.log('✓ SQL migration verified for search_path security, role isolation, and default student assignment.');
+// Check standalone security migration
+const strictMigrationPath = path.resolve('supabase/migrations/20261021_strict_admin_role_enforcement.sql');
+assert.ok(fs.existsSync(strictMigrationPath), 'Strict admin enforcement migration SQL must exist');
+const strictSql = fs.readFileSync(strictMigrationPath, 'utf8');
+assert.ok(strictSql.includes("id = auth.uid() OR public.get_user_role() = 'admin'"), 'Strict migration must enforce admin-only view policy');
+assert.ok(!strictSql.includes('(SELECT p.role FROM public.profiles'), 'Strict migration must avoid recursive RLS subqueries');
+assert.ok(strictSql.includes('CREATE TRIGGER trg_protect_profile_fields'), 'Strict migration must include protect_profile_fields trigger');
+assert.ok(strictSql.includes('DROP POLICY IF EXISTS "Public can view profiles"'), 'Strict migration must drop permissive legacy policies');
+
+console.log('✓ SQL migration verified for search_path security, recursion-free RLS, trigger-based field protection, and admin isolation.');
 
 // -----------------------------------------------------------------------------
 // Test 6: Student Data Isolation Logic

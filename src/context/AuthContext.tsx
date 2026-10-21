@@ -67,11 +67,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (data) {
+        const validRoles: UserRole[] = ['admin', 'librarian', 'student'];
+        const validatedRole: UserRole = validRoles.includes(data.role as UserRole)
+          ? (data.role as UserRole)
+          : 'student';
+
         return {
           id: data.id,
           email: data.email,
           fullName: data.full_name || '',
-          role: data.role as UserRole,
+          role: validatedRole,
           scholarId: data.scholar_id || null
         };
       }
