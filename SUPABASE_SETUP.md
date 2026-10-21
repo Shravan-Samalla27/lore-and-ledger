@@ -81,13 +81,13 @@ To link a student user account to their collegiate scholar folio:
 
 ---
 
-## 5. Step 5: Role-Specific Login Routes & Access Rules
+## 5. Step 5: Role-Specific Login Routes & Strict Access Matrix
 
-| Station / Role | Dedicated Login Route | Permitted Views & Actions | Restricted From |
+| Station / Role | Dedicated Login Route | Permitted Views & Portals | Restricted From |
 | :--- | :--- | :--- | :--- |
-| **Student** | `/login/student` | Reading Desk (`/student`), browse catalogue (`/books`), personal loans, due dates, fines | Cannot access staff circulation desk (`/issue-book`, `/return-book`, `/students`, `/reports`, `/admin`) |
-| **Librarian** | `/login/librarian` | Circulation Desk (`/`), Issue Folio, Return Folio, Students Register, Audit Reports, Statutes | Cannot access Chancellor admin console |
-| **Admin** | `/login/admin` | Everything above + High Chancellor Console (`/admin`) for staff role management | Full administrative access |
+| **Student** | `/login/student` | Reading Desk (`/student`), browse catalogue (`/books`), personal loans, due dates, caution deposit | Strictly denied from staff circulation desk (`/`, `/issue-book`, `/return-book`, `/students`, `/reports`, `/settings`) and Chancellor console (`/admin`) |
+| **Librarian** | `/login/librarian` | Circulation Desk (`/`), Issue Folio (`/issue-book`), Return Folio (`/return-book`), Students Register (`/students`), Audit Reports (`/reports`), Statutes (`/settings`), browse catalogue (`/books`) | Strictly denied from Chancellor admin console (`/admin`) and Scholar Reading Desk (`/student`) |
+| **Admin** | `/login/admin` | High Chancellor Console (`/admin`) for staff role appointments and scholar folio linking, browse catalogue (`/books`) | Strictly denied from staff circulation desk and Scholar Reading Desk |
 | **Gateway** | `/login` | Station selection portal with antique seal cards | N/A |
 
 ---

@@ -8,7 +8,7 @@ import { useLibrary } from '@/context/LibraryContext';
 
 export default function StudentLoginPage() {
   const router = useRouter();
-  const { signIn, signUpStudent, isConfigured } = useAuth();
+  const { user, role, isLoading: isLoadingAuth, signIn, signOut, signUpStudent, isConfigured } = useAuth();
   const { showToast } = useLibrary();
 
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
@@ -18,6 +18,20 @@ export default function StudentLoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successNotice, setSuccessNotice] = useState('');
+
+  // Check for existing authenticated sessions when switching portals
+  React.useEffect(() => {
+    if (isLoadingAuth) return;
+    if (user && role) {
+      if (role === 'student') {
+        router.replace('/student');
+      } else {
+        // An admin or librarian session must never be treated as a student session
+        signOut();
+        setErrorMessage('Access denied: your account is not authorized for this portal');
+      }
+    }
+  }, [user, role, isLoadingAuth, router, signOut]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,10 +62,17 @@ export default function StudentLoginPage() {
     }
 
     // Sign In flow
-    const res = await signIn(email, password);
+    const res = await signIn(email, password, 'student');
     if (!res.success) {
       setIsLoading(false);
-      setErrorMessage(res.error || 'Invalid credentials.');
+      setErrorMessage(res.error || 'Access denied: your account is not authorized for this portal');
+      return;
+    }
+
+    if (res.profile?.role !== 'student') {
+      setIsLoading(false);
+      await signOut();
+      setErrorMessage('Access denied: your account is not authorized for this portal');
       return;
     }
 

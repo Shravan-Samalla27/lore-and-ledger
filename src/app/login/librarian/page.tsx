@@ -9,7 +9,7 @@ import { useLibrary } from '@/context/LibraryContext';
 
 export default function LibrarianLoginPage() {
   const router = useRouter();
-  const { signIn, signOut, isConfigured } = useAuth();
+  const { user, role, isLoading: isLoadingAuth, signIn, signOut, isConfigured } = useAuth();
   const { showToast } = useLibrary();
 
   const [email, setEmail] = useState('');
@@ -17,29 +17,38 @@ export default function LibrarianLoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  // Check for existing authenticated sessions when switching portals
+  React.useEffect(() => {
+    if (isLoadingAuth) return;
+    if (user && role) {
+      if (role === 'librarian') {
+        router.replace('/');
+      } else {
+        // A student or admin session must never be treated as a librarian session
+        signOut();
+        setErrorMessage('Access denied: your account is not authorized for this portal');
+      }
+    }
+  }, [user, role, isLoadingAuth, router, signOut]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
     setIsLoading(true);
 
-    const res = await signIn(email, password);
+    const res = await signIn(email, password, 'librarian');
 
     if (!res.success) {
       setIsLoading(false);
-      setErrorMessage(res.error || 'Authentication failed. Please verify your credentials.');
+      setErrorMessage(res.error || 'Access denied: your account is not authorized for this portal');
       return;
     }
 
     // Role verification
-    const assignedRole = res.profile?.role || 'student';
-    if (assignedRole !== 'librarian' && assignedRole !== 'admin') {
+    if (res.profile?.role !== 'librarian') {
       setIsLoading(false);
       await signOut();
-      setErrorMessage(
-        `Station Authorization Denied: The account "${res.user?.email}" holds the station of "Student", not "Librarian".\n` +
-        `Only appointed librarians or administrators may enter the Scriptorium desk.\n` +
-        `An administrator can appoint your account as a Librarian via the High Chancellor Console or Supabase SQL Editor.`
-      );
+      setErrorMessage('Access denied: your account is not authorized for this portal');
       return;
     }
 

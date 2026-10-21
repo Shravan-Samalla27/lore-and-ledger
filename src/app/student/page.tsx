@@ -8,7 +8,7 @@ import RoleGuard from '@/components/RoleGuard';
 
 export default function StudentPortalPage() {
   return (
-    <RoleGuard allowedRoles={['student', 'librarian', 'admin']}>
+    <RoleGuard allowedRoles={['student']}>
       <StudentPortalContent />
     </RoleGuard>
   );

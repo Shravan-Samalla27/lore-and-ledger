@@ -20,7 +20,11 @@ interface AuthContextType {
   role: UserRole | null;
   isLoading: boolean;
   isConfigured: boolean;
-  signIn: (email: string, password: string) => Promise<{
+  signIn: (
+    email: string,
+    password: string,
+    requiredRole?: UserRole
+  ) => Promise<{
     success: boolean;
     user?: User;
     profile?: UserProfile | null;
@@ -107,9 +111,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!isMounted) return;
       if (session?.user) {
-        setUser(session.user);
         const prof = await fetchProfile(session.user.id, session.user.email || '');
-        if (isMounted) setProfile(prof);
+        if (isMounted) {
+          setUser(session.user);
+          setProfile(prof);
+        }
       } else {
         setUser(null);
         setProfile(null);
@@ -123,9 +129,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (!isMounted) return;
       if (session?.user) {
-        setUser(session.user);
         const prof = await fetchProfile(session.user.id, session.user.email || '');
-        if (isMounted) setProfile(prof);
+        if (isMounted) {
+          setUser(session.user);
+          setProfile(prof);
+        }
       } else {
         setUser(null);
         setProfile(null);
@@ -141,7 +149,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (
     email: string,
-    password: string
+    password: string,
+    requiredRole?: UserRole
   ): Promise<{ success: boolean; user?: User; profile?: UserProfile | null; error?: string }> => {
     if (!supabase) {
       return {
@@ -182,8 +191,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (data.user) {
-        setUser(data.user);
         const prof = await fetchProfile(data.user.id, data.user.email || cleanEmail);
+
+        // Strict portal role verification
+        if (requiredRole && (!prof || prof.role !== requiredRole)) {
+          // Immediately deny access and sign out the unauthorized session safely
+          try {
+            await supabase.auth.signOut();
+          } catch (signoutErr) {
+            console.warn('Sign out cleanup error on role mismatch:', signoutErr);
+          }
+          setUser(null);
+          setProfile(null);
+          return {
+            success: false,
+            error: 'Access denied: your account is not authorized for this portal'
+          };
+        }
+
+        setUser(data.user);
         setProfile(prof);
         return { success: true, user: data.user, profile: prof };
       }

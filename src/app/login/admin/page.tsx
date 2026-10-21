@@ -9,7 +9,7 @@ import { useLibrary } from '@/context/LibraryContext';
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const { signIn, signOut, isConfigured } = useAuth();
+  const { user, role, isLoading: isLoadingAuth, signIn, signOut, isConfigured } = useAuth();
   const { showToast } = useLibrary();
 
   const [email, setEmail] = useState('');
@@ -17,16 +17,30 @@ export default function AdminLoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  // Check for existing authenticated sessions when switching portals
+  React.useEffect(() => {
+    if (isLoadingAuth) return;
+    if (user && role) {
+      if (role === 'admin') {
+        router.replace('/admin');
+      } else {
+        // A student or librarian session must never be treated as an admin session
+        signOut();
+        setErrorMessage('Access denied: your account is not authorized for this portal');
+      }
+    }
+  }, [user, role, isLoadingAuth, router, signOut]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
     setIsLoading(true);
 
-    const res = await signIn(email, password);
+    const res = await signIn(email, password, 'admin');
 
     if (!res.success) {
       setIsLoading(false);
-      setErrorMessage(res.error || 'Authentication rejected by the High Chancellor seal.');
+      setErrorMessage(res.error || 'Access denied: your account is not authorized for this portal');
       return;
     }
 
@@ -34,11 +48,7 @@ export default function AdminLoginPage() {
     if (res.profile?.role !== 'admin') {
       setIsLoading(false);
       await signOut();
-      setErrorMessage(
-        `High Chancellor Privileges Required: The account "${res.user?.email}" has the station of "${res.profile?.role || 'student'}", not "admin".\n\n` +
-        `To safely elevate this account to High Chancellor, run this command in your Supabase SQL Editor:\n` +
-        `UPDATE public.profiles SET role = 'admin', full_name = 'High Chancellor' WHERE email = '${res.user?.email}';`
-      );
+      setErrorMessage('Access denied: your account is not authorized for this portal');
       return;
     }
 
